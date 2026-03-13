@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "swiss-environment": {
-      "command": "uvx",
-      "args": ["swiss-environment-mcp"],
-      "env": {}
-    }
-  }
-}
