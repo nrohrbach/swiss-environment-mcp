@@ -278,7 +278,7 @@ Source data is subject to BAFU terms of use. Attribution to BAFU is required whe
 
 ## Author
 
-malkreide · [github.com/malkreide](https://github.com/malkreide)
+Hayal Oezkan · [github.com/malkreide](https://github.com/malkreide)
 
 ---
 
