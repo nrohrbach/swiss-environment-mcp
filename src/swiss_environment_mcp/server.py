@@ -1313,6 +1313,7 @@ def main() -> None:
     if transport == "streamable_http":
         mcp.settings.host = "0.0.0.0"
         mcp.settings.port = port
+        mcp.settings.allowed_hosts = ["swiss-environment-mcp.onrender.com", "localhost"]
         mcp.run(transport="streamable-http")
     else:
         mcp.run()
