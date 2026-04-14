@@ -13,6 +13,10 @@
 
 > MCP-Server, der KI-Modelle mit Schweizer Umweltdaten des BAFU verbindet – Luftqualität, Hydrologie, Naturgefahren, Waldbrandgefahr und offene Umweltdatensätze.
 
+<p align="center">
+  <img src="assets/demo.svg" alt="Demo: Claude fragt die NABEL-Luftqualität über einen swiss-environment-mcp Tool-Call ab und erhält einen WHO-2021-Grenzwertcheck" width="820">
+</p>
+
 ---
 
 ## Übersicht
@@ -174,6 +178,20 @@ docker run -p 8000:8000 swiss-environment-mcp
 | *«Naturgefahren-Bulletin für Graubünden?»* | `env_hazard_overview` |
 | *«Waldbrandgefahr im Kanton Wallis?»* | `env_wildfire_danger` |
 | *«BAFU-Biodiversitätsdatensätze auf opendata.swiss?»* | `env_bafu_datasets` |
+
+---
+
+## 🛡️ Safety & Limits
+
+| Aspekt | Details |
+|--------|---------|
+| **Zugriff** | Nur lesend (`readOnlyHint: true`) — der Server kann keine Daten ändern oder löschen |
+| **Personendaten** | Keine personenbezogenen Daten — alle Quellen sind aggregierte, öffentliche Umweltmessdaten |
+| **Rate Limits** | Eingebaute Obergrenzen pro Abfrage (z.B. max. 30 Tage Hydrologie-Historie, 50 Datensatz-Suchergebnisse) |
+| **Timeout** | 30 Sekunden pro API-Aufruf |
+| **Authentifizierung** | Keine API-Keys nötig — alle BAFU-Endpunkte sind öffentlich zugänglich |
+| **Lizenzen** | BAFU Open Government Data (OGD) — freie Nutzung mit obligatorischer Quellenangabe |
+| **Nutzungsbedingungen** | Es gelten die ToS der jeweiligen Datenquellen: [BAFU / opendata.swiss](https://opendata.swiss/de/organization/bafu), [hydrodaten.admin.ch](https://hydrodaten.admin.ch), [naturgefahren.ch](https://naturgefahren.ch), [waldbrandgefahr.ch](https://waldbrandgefahr.ch) |
 
 ---
 

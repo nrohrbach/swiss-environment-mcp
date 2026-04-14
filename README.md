@@ -13,6 +13,10 @@
 
 [🇩🇪 Deutsche Version](README.de.md)
 
+<p align="center">
+  <img src="assets/demo.svg" alt="Demo: Claude queries NABEL air quality via a swiss-environment-mcp tool call and gets a WHO 2021 compliance check" width="820">
+</p>
+
 ---
 
 ## Overview
@@ -174,6 +178,20 @@ docker run -p 8000:8000 swiss-environment-mcp
 | *"Natural hazard bulletin for Graubünden?"* | `env_hazard_overview` |
 | *"Wildfire danger in Canton Valais?"* | `env_wildfire_danger` |
 | *"BAFU biodiversity datasets on opendata.swiss?"* | `env_bafu_datasets` |
+
+---
+
+## 🛡️ Safety & Limits
+
+| Aspect | Details |
+|--------|---------|
+| **Access** | Read-only (`readOnlyHint: true`) — the server cannot modify or delete any data |
+| **Personal data** | No personal data — all sources are aggregated, public environmental measurements |
+| **Rate limits** | Built-in per-query caps (e.g. max 30 days hydrology history, 50 dataset search results) |
+| **Timeout** | 30 seconds per API call |
+| **Authentication** | No API keys required — all BAFU endpoints are publicly accessible |
+| **Licenses** | BAFU Open Government Data (OGD) — free reuse with mandatory attribution |
+| **Terms of Service** | Subject to ToS of the respective data sources: [BAFU / opendata.swiss](https://opendata.swiss/en/organization/bafu), [hydrodaten.admin.ch](https://hydrodaten.admin.ch), [naturgefahren.ch](https://naturgefahren.ch), [waldbrandgefahr.ch](https://waldbrandgefahr.ch) |
 
 ---
 
