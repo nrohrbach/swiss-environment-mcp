@@ -2,12 +2,14 @@
 Swiss Environment MCP Server
 
 MCP-Server für Schweizer Umweltdaten des BAFU (Bundesamt für Umwelt).
-Bietet 12 Tools in 4 thematischen Clustern:
+Bietet 16 Tools in 4 thematischen Clustern:
 
   Luft (3):        env_nabel_stations, env_nabel_current, env_air_limits_check
   Wasser (4):      env_hydro_stations, env_hydro_current, env_hydro_history, env_flood_warnings
   Naturgefahren (3): env_hazard_overview, env_hazard_regions, env_wildfire_danger
   Umweltdaten (2): env_bafu_datasets, env_bafu_dataset_detail
+  Wasser GraphQL (4): env_graphql_water_stations, env_graphql_water_measurements,
+                      env_graphql_water_quality, env_graphql_water_tracer
 
 Datenquellen:
   - BAFU NABEL (Nationale Luftmessstation-Daten)
@@ -15,6 +17,7 @@ Datenquellen:
   - naturgefahren.ch (Naturgefahren-Bulletin SLF/BAFU)
   - waldbrandgefahr.ch (Waldbrandgefahren-Index)
   - opendata.swiss CKAN (BAFU-Datenkatalog)
+  - data.bafu.admin.ch GraphQL API (Wasserbeobachtungen, NAWA-Trend, Tracer)
 
 Alle Daten: öffentlich, keine Authentifizierung erforderlich.
 Lizenz der Quelldaten: BAFU-Nutzungsbedingungen / Open Government Data (OGD)
@@ -26,10 +29,10 @@ from enum import Enum
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import api_client as api
-from mcp.server.transport_security import TransportSecuritySettings
 
 # --- Konstanten ---------------------------------------------------------------
 
@@ -110,9 +113,11 @@ mcp = FastMCP(
     instructions="""
     MCP-Server für Schweizer Umweltdaten des BAFU.
     Bietet Zugriff auf Luftqualität (NABEL), Hydrologiedaten (Flüsse/Seen),
-    Hochwasserwarnungen, Naturgefahren-Bulletin und Waldbrandgefahr.
+    Hochwasserwarnungen, Naturgefahren-Bulletin, Waldbrandgefahr sowie
+    Wasserbeobachtungen, Wasserqualität (NAWA-Trend) und Tracerdaten via GraphQL.
     Alle Daten stammen von Schweizer Bundesbehörden und sind öffentlich zugänglich.
     Zeitzone: Schweiz (CET/CEST). Masseinheiten: µg/m³ (Luft), m (Pegel), m³/s (Abfluss).
+    GraphQL-Endpoint: https://data.bafu.admin.ch/api
     """,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
@@ -299,6 +304,141 @@ class BafuDatasetDetailInput(BaseModel):
         min_length=3,
         max_length=200,
     )
+
+
+class GraphQLWaterStationsInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    station_nos: list[str] = Field(
+        default_factory=list,
+        description="Liste von Stationsnummern zum Filtern (z.B. ['0070', '0078']) – leer = alle",
+    )
+    limit: int = Field(
+        default=20,
+        description="Maximale Anzahl Stationen (1–200)",
+        ge=1,
+        le=200,
+    )
+    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
+
+
+class GraphQLWaterMeasurementsInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    station_no: str = Field(
+        ...,
+        description="Stationsnummer (z.B. '2016')",
+        min_length=1,
+        max_length=20,
+    )
+    resolution: str = Field(
+        default="1hour",
+        description="Zeitauflösung: '10min' (10-Minuten-Mittel) oder '1hour' (Stundenmittel)",
+    )
+    date_from: str = Field(
+        ...,
+        description="Startdatum ISO 8601 (z.B. '2023-12-01T00:00:00Z')",
+        min_length=10,
+        max_length=30,
+    )
+    date_to: str = Field(
+        ...,
+        description="Enddatum ISO 8601 (z.B. '2023-12-02T00:00:00Z')",
+        min_length=10,
+        max_length=30,
+    )
+    parameter: str = Field(
+        default="",
+        description="Messparameter filtern (z.B. 'Q' für Abfluss, 'W' für Pegel, 'T' für Temperatur) – leer = alle",
+        max_length=20,
+    )
+    limit: int = Field(
+        default=24,
+        description="Maximale Anzahl Messwerte (1–500)",
+        ge=1,
+        le=500,
+    )
+    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
+
+    @field_validator("resolution")
+    @classmethod
+    def validate_resolution(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in ("10min", "1hour"):
+            raise ValueError("resolution muss '10min' oder '1hour' sein")
+        return v
+
+
+class GraphQLWaterQualityInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    mode: str = Field(
+        default="stations",
+        description="Abfragemodus: 'stations' (Stationsinfo) oder 'data' (Messwerte)",
+    )
+    canton: str = Field(
+        default="",
+        description="Kanton filtern (z.B. 'BE', 'ZH') – leer = alle",
+        max_length=2,
+    )
+    station_id: str = Field(
+        default="",
+        description="Stations-ID für Messwerteabfrage (z.B. '1837') – nur bei mode='data'",
+        max_length=20,
+    )
+    sampling_type: str = Field(
+        default="",
+        description="Probentyp filtern (z.B. 'Sammelprobe abflussproportional') – leer = alle",
+        max_length=100,
+    )
+    limit: int = Field(
+        default=20,
+        description="Maximale Anzahl Resultate (1–200)",
+        ge=1,
+        le=200,
+    )
+    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in ("stations", "data"):
+            raise ValueError("mode muss 'stations' oder 'data' sein")
+        return v
+
+    @field_validator("canton")
+    @classmethod
+    def validate_canton(cls, v: str) -> str:
+        return v.upper().strip()
+
+
+class GraphQLWaterTracerInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    tracer: str = Field(
+        default="",
+        description="Tracerstoff filtern (z.B. 'Uranin', 'Tinopal', 'Pyranin') – leer = alle",
+        max_length=100,
+    )
+    canton: str = Field(
+        default="",
+        description="Kanton filtern (z.B. 'BE', 'ZH') – leer = alle",
+        max_length=2,
+    )
+    date_from: str = Field(
+        default="",
+        description="Startdatum ISO 8601 (z.B. '2010-01-01T00:00:00Z') – leer = kein Filter",
+        max_length=30,
+    )
+    limit: int = Field(
+        default=20,
+        description="Maximale Anzahl Resultate (1–200)",
+        ge=1,
+        le=200,
+    )
+    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN)
+
+    @field_validator("canton")
+    @classmethod
+    def validate_canton(cls, v: str) -> str:
+        return v.upper().strip()
 
 
 # --- Hilfsfunktionen ----------------------------------------------------------
@@ -1264,6 +1404,535 @@ async def env_bafu_dataset_detail(params: BafuDatasetDetailInput) -> str:
             f"⚠️ Datensatz '{params.dataset_id}' nicht gefunden: {error_msg}\n\n"
             "**Tipp:** Nutze `env_bafu_datasets` um gültige Dataset-IDs zu finden.\n"
             "**BAFU-Datenkatalog:** https://opendata.swiss/de/organization/bafu"
+        )
+
+
+# --- TOOLS: WASSER GRAPHQL ----------------------------------------------------
+
+
+@mcp.tool(
+    name="env_graphql_water_stations",
+    annotations={
+        "title": "Wasserbeobachtungs-Stationen (GraphQL)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def env_graphql_water_stations(params: GraphQLWaterStationsInput) -> str:
+    """
+    Listet Wasserbeobachtungs-Stationen der BAFU GraphQL API auf.
+
+    Liefert aktive Hydromesstationen mit Name, Stationsnummer, Koordinaten und ID.
+    Optionaler Filter nach Stationsnummern. Quelle: data.bafu.admin.ch GraphQL API,
+    Bereich water.observations.stations.
+
+    Args:
+        params (GraphQLWaterStationsInput):
+            - station_nos: Liste von Stationsnummern zum Filtern (leer = alle)
+            - limit: Maximale Anzahl Resultate (Standard: 20)
+            - response_format: 'markdown' oder 'json'
+
+    Returns:
+        str: Stationsliste mit Name, Nummer, Koordinaten.
+    """
+    try:
+        if params.station_nos:
+            query = """
+            query FilterObservationStations($nos: [String!]) {
+              water {
+                observations {
+                  stations(where: {no: {_in: $nos}}) {
+                    name
+                    no
+                    latitude
+                    longitude
+                    id
+                  }
+                }
+              }
+            }
+            """
+            variables: dict[str, Any] = {"nos": params.station_nos}
+        else:
+            query = """
+            query GetObservationStations($limit: Int) {
+              water {
+                observations {
+                  stations(limit: $limit) {
+                    name
+                    no
+                    latitude
+                    longitude
+                    id
+                  }
+                }
+              }
+            }
+            """
+            variables = {"limit": params.limit}
+
+        result = await api.execute_graphql_query(query, variables)
+        stations = (
+            result.get("data", {}).get("water", {}).get("observations", {}).get("stations", [])
+        )
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(
+                {
+                    "stationen": stations,
+                    "total": len(stations),
+                    "quelle": "BAFU GraphQL API – water.observations.stations",
+                    "api_endpoint": "https://data.bafu.admin.ch/api",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        lines = [
+            "## Wasserbeobachtungs-Stationen (BAFU GraphQL)\n",
+            f"**{len(stations)} Stationen** | Quelle: data.bafu.admin.ch\n",
+            "| Station Nr. | Name | Koordinaten |",
+            "|-------------|------|-------------|",
+        ]
+        for s in stations:
+            lat = s.get("latitude", "–")
+            lon = s.get("longitude", "–")
+            coords = f"{lat:.4f}, {lon:.4f}" if isinstance(lat, (int, float)) else "–"
+            lines.append(f"| {s.get('no', '–')} | {s.get('name', '–')} | {coords} |")
+
+        lines += [
+            "",
+            "**API Endpoint:** https://data.bafu.admin.ch/api",
+            "*Tipp: Für Messwerte → `env_graphql_water_measurements` mit der Stationsnummer aufrufen.*",
+        ]
+        return "\n".join(lines)
+
+    except Exception as e:
+        error_msg = api.handle_http_error(e)
+        return (
+            f"⚠️ GraphQL-Abfrage fehlgeschlagen: {error_msg}\n\n"
+            "**API Endpoint:** https://data.bafu.admin.ch/api\n"
+            "**Dokumentation:** https://data.bafu.admin.ch"
+        )
+
+
+@mcp.tool(
+    name="env_graphql_water_measurements",
+    annotations={
+        "title": "Wassermesswerte (10min / Stundenmittel)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def env_graphql_water_measurements(params: GraphQLWaterMeasurementsInput) -> str:
+    """
+    Ruft Zeitreihenmessungen einer Wasserbeobachtungsstation ab (10-Minuten- oder Stundenmittel).
+
+    Liefert Messwerte mit Zeitstempel, Wert, Messparameter und Einheit für eine Station
+    in einem definierten Zeitraum. Unterstützte Parameter: Q (Abfluss m³/s), W (Pegel m ü.M.),
+    T (Temperatur °C) und weitere. Quelle: data.bafu.admin.ch GraphQL API.
+
+    Args:
+        params (GraphQLWaterMeasurementsInput):
+            - station_no: Stationsnummer (z.B. '2016')
+            - resolution: '10min' oder '1hour' (Standard: '1hour')
+            - date_from: Startdatum ISO 8601 (z.B. '2023-12-01T00:00:00Z')
+            - date_to: Enddatum ISO 8601 (z.B. '2023-12-02T00:00:00Z')
+            - parameter: Messparameter ('Q', 'W', 'T' usw.) – leer = alle
+            - limit: Max. Anzahl Messwerte (Standard: 24)
+            - response_format: 'markdown' oder 'json'
+
+    Returns:
+        str: Messwerte mit Zeitstempel, Wert, Einheit und Stationsinfo.
+    """
+    try:
+        field_name = "data_10min_mean" if params.resolution == "10min" else "data_1hour_mean"
+
+        where_conditions: list[str] = [
+            f'station: {{no: {{_eq: "{params.station_no}"}}}}',
+            f'timestamp: {{_gte: "{params.date_from}", _lt: "{params.date_to}"}}',
+        ]
+        if params.parameter:
+            where_conditions.append(f'parameterName: {{_eq: "{params.parameter}"}}')
+
+        where_str = ", ".join(where_conditions)
+
+        query = f"""
+        query GetWaterMeasurements {{
+          water {{
+            observations {{
+              {field_name}(
+                where: {{{where_str}}}
+                limit: {params.limit}
+              ) {{
+                station {{
+                  name
+                  no
+                  latitude
+                  longitude
+                }}
+                timestamp
+                value
+                parameterName
+                tsName
+                unitName
+                unitSymbol
+                releaseState
+              }}
+            }}
+          }}
+        }}
+        """
+
+        result = await api.execute_graphql_query(query)
+        measurements = (
+            result.get("data", {}).get("water", {}).get("observations", {}).get(field_name, [])
+        )
+
+        resolution_label = "10-Minuten-Mittel" if params.resolution == "10min" else "Stundenmittel"
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(
+                {
+                    "station_no": params.station_no,
+                    "resolution": params.resolution,
+                    "date_from": params.date_from,
+                    "date_to": params.date_to,
+                    "messungen": measurements,
+                    "total": len(measurements),
+                    "quelle": f"BAFU GraphQL API – water.observations.{field_name}",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        if not measurements:
+            return (
+                f"Keine Messwerte gefunden für Station {params.station_no} "
+                f"({params.date_from} – {params.date_to}).\n"
+                "Bitte Zeitraum, Stationsnummer oder Parameter prüfen."
+            )
+
+        first = measurements[0]
+        station_name = first.get("station", {}).get("name", params.station_no)
+
+        lines = [
+            f"## Wassermessungen: {station_name} (Nr. {params.station_no})\n",
+            f"- **Auflösung:** {resolution_label}",
+            f"- **Zeitraum:** {params.date_from} – {params.date_to}",
+            f"- **Anzahl Werte:** {len(measurements)}",
+            "",
+            "| Zeitstempel | Parameter | Wert | Einheit | Freigabe |",
+            "|-------------|-----------|------|---------|---------|",
+        ]
+        for m in measurements:
+            ts = m.get("timestamp", "–")[:19].replace("T", " ")
+            param = m.get("parameterName", "–")
+            val = m.get("value")
+            val_str = f"{val:.3f}" if isinstance(val, (int, float)) else "–"
+            unit = m.get("unitSymbol") or m.get("unitName") or "–"
+            release = m.get("releaseState", "–") or "–"
+            lines.append(f"| {ts} | {param} | {val_str} | {unit} | {release} |")
+
+        lines += [
+            "",
+            "**Quelle:** BAFU GraphQL API – https://data.bafu.admin.ch/api",
+        ]
+        return "\n".join(lines)
+
+    except Exception as e:
+        error_msg = api.handle_http_error(e)
+        return (
+            f"⚠️ GraphQL-Abfrage fehlgeschlagen: {error_msg}\n\n"
+            "**API Endpoint:** https://data.bafu.admin.ch/api"
+        )
+
+
+@mcp.tool(
+    name="env_graphql_water_quality",
+    annotations={
+        "title": "Wasserqualität NAWA-Trend (GraphQL)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def env_graphql_water_quality(params: GraphQLWaterQualityInput) -> str:
+    """
+    Ruft Daten des nationalen Beobachtungsprogramms Wasserqualität (NAWA-Trend) ab.
+
+    NAWA-Trend überwacht die chemische Wasserqualität der Schweizer Fliessgewässer
+    an rund 100 Stationen. Verfügbare Modi:
+      - 'stations': Stationsinfo inkl. Gewässer, Kanton und Koordinaten
+      - 'data': Chemische Messwerte (Pestizide, Nährstoffe, Schwermetalle usw.)
+
+    Quelle: data.bafu.admin.ch GraphQL API, Bereich water.nawa_trend.
+
+    Args:
+        params (GraphQLWaterQualityInput):
+            - mode: 'stations' oder 'data' (Standard: 'stations')
+            - canton: Kantonskürzel filtern (z.B. 'BE', 'ZH') – leer = alle
+            - station_id: Stations-ID für Messwerteabfrage – nur bei mode='data'
+            - sampling_type: Probentyp filtern – leer = alle
+            - limit: Max. Anzahl Resultate (Standard: 20)
+            - response_format: 'markdown' oder 'json'
+
+    Returns:
+        str: NAWA-Stationsliste oder chemische Messwerte.
+    """
+    try:
+        if params.mode == "stations":
+            where_parts = []
+            if params.canton:
+                where_parts.append(f'canton: {{_eq: "{params.canton}"}}')
+            where_str = f"where: {{{', '.join(where_parts)}}}" if where_parts else ""
+
+            query = f"""
+            query GetNawaTrendStations {{
+              water {{
+                nawa_trend {{
+                  stations({where_str} limit: {params.limit}) {{
+                    id
+                    name
+                    waterBodyName
+                    canton
+                    latitude
+                    longitude
+                  }}
+                }}
+              }}
+            }}
+            """
+            result = await api.execute_graphql_query(query)
+            items = (
+                result.get("data", {}).get("water", {}).get("nawa_trend", {}).get("stations", [])
+            )
+
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps(
+                    {
+                        "nawa_trend_stationen": items,
+                        "total": len(items),
+                        "quelle": "BAFU GraphQL API – water.nawa_trend.stations",
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+            lines = [
+                "## NAWA-Trend Stationen – Wasserqualitäts-Monitoring\n",
+                f"**{len(items)} Stationen** | Kanton-Filter: {params.canton or 'alle'}\n",
+                "| ID | Name | Gewässer | Kanton |",
+                "|----|------|----------|--------|",
+            ]
+            for s in items:
+                lines.append(
+                    f"| {s.get('id', '–')} | {s.get('name', '–')} "
+                    f"| {s.get('waterBodyName', '–')} | {s.get('canton', '–')} |"
+                )
+            lines += [
+                "",
+                "**Quelle:** BAFU GraphQL API – https://data.bafu.admin.ch/api",
+                "*Tipp: Messwerte abrufen mit mode='data' und station_id.*",
+            ]
+            return "\n".join(lines)
+
+        else:  # mode == "data"
+            where_parts = []
+            if params.station_id:
+                where_parts.append(f'stationId: {{_eq: "{params.station_id}"}}')
+            if params.sampling_type:
+                where_parts.append(f'samplingType: {{_eq: "{params.sampling_type}"}}')
+            where_str = f"where: {{{', '.join(where_parts)}}}" if where_parts else ""
+
+            query = f"""
+            query GetNawaTrendData {{
+              water {{
+                nawa_trend {{
+                  data({where_str} limit: {params.limit}) {{
+                    stationId
+                    stationName
+                    samplingType
+                    measuredParameter
+                    measuredValue
+                    unit
+                    sampleDate
+                  }}
+                }}
+              }}
+            }}
+            """
+            result = await api.execute_graphql_query(query)
+            items = result.get("data", {}).get("water", {}).get("nawa_trend", {}).get("data", [])
+
+            if params.response_format == ResponseFormat.JSON:
+                return json.dumps(
+                    {
+                        "nawa_trend_daten": items,
+                        "total": len(items),
+                        "quelle": "BAFU GraphQL API – water.nawa_trend.data",
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+
+            if not items:
+                return (
+                    "Keine NAWA-Trend-Messwerte gefunden.\n"
+                    "Bitte Stations-ID, Probentyp oder Limit prüfen."
+                )
+
+            lines = [
+                f"## NAWA-Trend Messwerte – Station {params.station_id or 'alle'}\n",
+                f"**{len(items)} Messwerte** | Probentyp: {params.sampling_type or 'alle'}\n",
+                "| Station | Parameter | Wert | Einheit | Probentyp |",
+                "|---------|-----------|------|---------|-----------|",
+            ]
+            for d in items:
+                val = d.get("measuredValue")
+                val_str = str(val) if val is not None else "–"
+                lines.append(
+                    f"| {d.get('stationName', d.get('stationId', '–'))} "
+                    f"| {d.get('measuredParameter', '–')} "
+                    f"| {val_str} "
+                    f"| {d.get('unit', '–')} "
+                    f"| {d.get('samplingType', '–')} |"
+                )
+            lines += [
+                "",
+                "**Quelle:** BAFU GraphQL API – https://data.bafu.admin.ch/api",
+            ]
+            return "\n".join(lines)
+
+    except Exception as e:
+        error_msg = api.handle_http_error(e)
+        return (
+            f"⚠️ GraphQL-Abfrage fehlgeschlagen: {error_msg}\n\n"
+            "**API Endpoint:** https://data.bafu.admin.ch/api"
+        )
+
+
+@mcp.tool(
+    name="env_graphql_water_tracer",
+    annotations={
+        "title": "Grundwasser-Tracerversuche (GraphQL)",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    },
+)
+async def env_graphql_water_tracer(params: GraphQLWaterTracerInput) -> str:
+    """
+    Ruft Tracerversuchs-Daten des BAFU ab (Grundwasser-Markierversuche).
+
+    Tracerversuche dienen der Untersuchung von Grundwasserfliessrichtungen und
+    -geschwindigkeiten. Die Daten umfassen verwendete Tracerstoffe (z.B. Uranin,
+    Tinopal, Pyranin), Gemeinde, Kanton, Menge, Einheit und Datum.
+
+    Quelle: data.bafu.admin.ch GraphQL API, Bereich water.tracer.
+
+    Args:
+        params (GraphQLWaterTracerInput):
+            - tracer: Tracerstoff filtern (z.B. 'Uranin') – leer = alle
+            - canton: Kantonskürzel filtern (z.B. 'BE') – leer = alle
+            - date_from: Startdatum ISO 8601 – leer = kein Filter
+            - limit: Max. Anzahl Resultate (Standard: 20)
+            - response_format: 'markdown' oder 'json'
+
+    Returns:
+        str: Tracerversuchs-Einträge mit Tracer, Gemeinde, Kanton, Menge und Datum.
+    """
+    try:
+        where_parts = []
+        if params.tracer:
+            where_parts.append(f'usedTracer: {{_eq: "{params.tracer}"}}')
+        if params.canton:
+            where_parts.append(f'canton: {{_eq: "{params.canton}"}}')
+        if params.date_from:
+            where_parts.append(f'date: {{_gte: "{params.date_from}"}}')
+
+        where_str = f"where: {{{', '.join(where_parts)}}}" if where_parts else ""
+
+        query = f"""
+        query GetTracerData {{
+          water {{
+            tracer {{
+              data({where_str} limit: {params.limit}) {{
+                canton
+                community
+                usedTracer
+                amount
+                unit
+                date
+              }}
+            }}
+          }}
+        }}
+        """
+
+        result = await api.execute_graphql_query(query)
+        items = result.get("data", {}).get("water", {}).get("tracer", {}).get("data", [])
+
+        if params.response_format == ResponseFormat.JSON:
+            return json.dumps(
+                {
+                    "tracer_daten": items,
+                    "total": len(items),
+                    "filter": {
+                        "tracer": params.tracer or None,
+                        "canton": params.canton or None,
+                        "date_from": params.date_from or None,
+                    },
+                    "quelle": "BAFU GraphQL API – water.tracer.data",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        if not items:
+            return (
+                "Keine Tracerversuchs-Daten gefunden.\n"
+                "Bitte Filter (Tracer, Kanton, Datum) anpassen."
+            )
+
+        lines = [
+            "## Grundwasser-Tracerversuche (BAFU)\n",
+            f"**{len(items)} Einträge** | "
+            f"Tracer: {params.tracer or 'alle'} | "
+            f"Kanton: {params.canton or 'alle'}\n",
+            "| Datum | Tracer | Gemeinde | Kanton | Menge | Einheit |",
+            "|-------|--------|----------|--------|-------|---------|",
+        ]
+        for d in items:
+            date_str = (d.get("date") or "–")[:10]
+            amount = d.get("amount")
+            amount_str = f"{amount:g}" if isinstance(amount, (int, float)) else str(amount or "–")
+            lines.append(
+                f"| {date_str} "
+                f"| {d.get('usedTracer', '–')} "
+                f"| {d.get('community', '–')} "
+                f"| {d.get('canton', '–')} "
+                f"| {amount_str} "
+                f"| {d.get('unit', '–')} |"
+            )
+
+        lines += [
+            "",
+            "**Quelle:** BAFU GraphQL API – https://data.bafu.admin.ch/api",
+        ]
+        return "\n".join(lines)
+
+    except Exception as e:
+        error_msg = api.handle_http_error(e)
+        return (
+            f"⚠️ GraphQL-Abfrage fehlgeschlagen: {error_msg}\n\n"
+            "**API Endpoint:** https://data.bafu.admin.ch/api"
         )
 
 

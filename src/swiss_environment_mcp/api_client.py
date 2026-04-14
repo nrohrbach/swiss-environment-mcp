@@ -7,6 +7,7 @@ Quellen:
   - naturgefahren.ch      – Naturgefahren-Bulletin (SLF/BAFU)
   - waldbrandgefahr.ch    – Waldbrandgefahr Schweiz
   - map.bafu.admin.ch     – BAFU Web-GIS (Gefahrenkarten)
+  - data.bafu.admin.ch    – BAFU GraphQL API (Wasser: Messungen, NAWA, Tracer)
 """
 
 from typing import Any
@@ -28,6 +29,8 @@ WALDBRAND_BASE = "https://www.waldbrandgefahr.ch"
 
 BAFU_WEB = "https://www.bafu.admin.ch"
 BAFU_GIS = "https://map.bafu.admin.ch"
+
+BAFU_GRAPHQL_API = "https://data.bafu.admin.ch/api"
 
 TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 
@@ -232,3 +235,32 @@ async def fetch_nabel_data(
         )
         response.raise_for_status()
         return response.json()
+
+
+# --- BAFU GraphQL API ---------------------------------------------------------
+
+
+async def execute_graphql_query(
+    query: str, variables: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """
+    Führt eine GraphQL-Abfrage gegen die BAFU GraphQL API aus.
+
+    Endpoint: https://data.bafu.admin.ch/api
+    Keine Authentifizierung erforderlich (öffentliche API).
+    """
+    payload: dict[str, Any] = {"query": query}
+    if variables:
+        payload["variables"] = variables
+    async with _make_client() as client:
+        response = await client.post(
+            BAFU_GRAPHQL_API,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        result = response.json()
+        if "errors" in result:
+            error_messages = "; ".join(e.get("message", str(e)) for e in result["errors"])
+            raise ValueError(f"GraphQL-Fehler: {error_messages}")
+        return result
