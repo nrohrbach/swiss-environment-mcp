@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2f7"/>
+    </linearGradient>
+    <linearGradient id="claude" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d97757"/>
+      <stop offset="1" stop-color="#c4613e"/>
+    </linearGradient>
+    <linearGradient id="mcp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2f855a"/>
+      <stop offset="1" stop-color="#276749"/>
+    </linearGradient>
+    <linearGradient id="bafu" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b6cb0"/>
+      <stop offset="1" stop-color="#2c5282"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.15"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="620" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="600" y="50" text-anchor="middle" font-size="26" font-weight="700" fill="#0f172a">swiss-environment-mcp · Live BAFU data, one tool call away</text>
+  <text x="600" y="78" text-anchor="middle" font-size="15" fill="#475569">Claude asks → MCP Tool Call → BAFU API → Structured answer with WHO 2021 limit check</text>
+
+  <!-- Step 1: Claude asks -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="130" width="320" height="170" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <rect x="60" y="130" width="320" height="38" rx="14" fill="url(#claude)"/>
+    <rect x="60" y="150" width="320" height="18" fill="url(#claude)"/>
+    <text x="78" y="155" font-size="13" font-weight="600" fill="#fff">① User → Claude</text>
+    <text x="78" y="200" font-size="14" fill="#0f172a" font-style="italic">"What's the air quality at</text>
+    <text x="78" y="222" font-size="14" fill="#0f172a" font-style="italic">NABEL station Zürich-Kaserne</text>
+    <text x="78" y="244" font-size="14" fill="#0f172a" font-style="italic">right now — and does it comply</text>
+    <text x="78" y="266" font-size="14" fill="#0f172a" font-style="italic">with WHO 2021 guidelines?"</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <line x1="390" y1="215" x2="440" y2="215" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: MCP Tool Call -->
+  <g filter="url(#shadow)">
+    <rect x="450" y="130" width="300" height="170" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <rect x="450" y="130" width="300" height="38" rx="14" fill="url(#mcp)"/>
+    <rect x="450" y="150" width="300" height="18" fill="url(#mcp)"/>
+    <text x="468" y="155" font-size="13" font-weight="600" fill="#fff">② MCP Tool Call</text>
+    <rect x="468" y="186" width="264" height="96" rx="6" fill="#0f172a"/>
+    <text x="480" y="207" font-size="12" font-family="ui-monospace, 'Cascadia Code', monospace" fill="#7dd3fc">env_nabel_current(</text>
+    <text x="496" y="226" font-size="12" font-family="ui-monospace, 'Cascadia Code', monospace" fill="#fde68a">  station=</text>
+    <text x="562" y="226" font-size="12" font-family="ui-monospace, 'Cascadia Code', monospace" fill="#86efac">"ZUE"</text>
+    <text x="480" y="245" font-size="12" font-family="ui-monospace, 'Cascadia Code', monospace" fill="#7dd3fc">)</text>
+    <text x="480" y="270" font-size="11" font-family="ui-monospace, 'Cascadia Code', monospace" fill="#94a3b8">+ env_air_limits_check()</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <line x1="760" y1="215" x2="810" y2="215" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: BAFU -->
+  <g filter="url(#shadow)">
+    <rect x="820" y="130" width="320" height="170" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <rect x="820" y="130" width="320" height="38" rx="14" fill="url(#bafu)"/>
+    <rect x="820" y="150" width="320" height="18" fill="url(#bafu)"/>
+    <text x="838" y="155" font-size="13" font-weight="600" fill="#fff">③ BAFU / NABEL</text>
+    <text x="838" y="198" font-size="13" fill="#334155">🌬️ NABEL monitoring network</text>
+    <text x="838" y="220" font-size="13" fill="#334155">💧 hydrodaten.admin.ch</text>
+    <text x="838" y="242" font-size="13" fill="#334155">🏔️ naturgefahren.ch</text>
+    <text x="838" y="264" font-size="13" fill="#334155">🔥 waldbrandgefahr.ch</text>
+    <text x="838" y="286" font-size="11" fill="#64748b">No API key · Public OGD</text>
+  </g>
+
+  <!-- Arrow down -->
+  <line x1="600" y1="320" x2="600" y2="370" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: Answer -->
+  <g filter="url(#shadow)">
+    <rect x="150" y="380" width="900" height="190" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+    <rect x="150" y="380" width="900" height="38" rx="14" fill="#0f172a"/>
+    <rect x="150" y="400" width="900" height="18" fill="#0f172a"/>
+    <text x="170" y="405" font-size="13" font-weight="600" fill="#fff">④ Claude answers — with Swiss LRV + WHO 2021 compliance</text>
+
+    <!-- pill: station -->
+    <rect x="170" y="438" width="210" height="28" rx="14" fill="#e0f2fe"/>
+    <text x="185" y="457" font-size="13" fill="#0c4a6e">📍 Zürich-Kaserne (ZUE)</text>
+
+    <!-- NO2 -->
+    <text x="170" y="498" font-size="13" fill="#64748b">NO₂</text>
+    <text x="170" y="522" font-size="22" font-weight="700" fill="#0f172a">24 µg/m³</text>
+    <rect x="170" y="532" width="86" height="18" rx="9" fill="#dcfce7"/>
+    <text x="180" y="545" font-size="11" fill="#166534">✓ WHO 2021 ok</text>
+
+    <!-- O3 -->
+    <text x="320" y="498" font-size="13" fill="#64748b">O₃</text>
+    <text x="320" y="522" font-size="22" font-weight="700" fill="#0f172a">67 µg/m³</text>
+    <rect x="320" y="532" width="86" height="18" rx="9" fill="#dcfce7"/>
+    <text x="330" y="545" font-size="11" fill="#166534">✓ WHO 2021 ok</text>
+
+    <!-- PM10 -->
+    <text x="470" y="498" font-size="13" fill="#64748b">PM10</text>
+    <text x="470" y="522" font-size="22" font-weight="700" fill="#0f172a">19 µg/m³</text>
+    <rect x="470" y="532" width="100" height="18" rx="9" fill="#fef3c7"/>
+    <text x="480" y="545" font-size="11" fill="#92400e">⚠ WHO 2021 exc.</text>
+
+    <!-- PM2.5 -->
+    <text x="620" y="498" font-size="13" fill="#64748b">PM2.5</text>
+    <text x="620" y="522" font-size="22" font-weight="700" fill="#0f172a">11 µg/m³</text>
+    <rect x="620" y="532" width="100" height="18" rx="9" fill="#fef3c7"/>
+    <text x="630" y="545" font-size="11" fill="#92400e">⚠ WHO 2021 exc.</text>
+
+    <!-- Summary box -->
+    <rect x="760" y="440" width="280" height="115" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="776" y="462" font-size="12" font-weight="600" fill="#0f172a">Summary</text>
+    <text x="776" y="484" font-size="12" fill="#334155">• Swiss LRV: all pollutants ok</text>
+    <text x="776" y="504" font-size="12" fill="#334155">• WHO 2021: PM10/PM2.5 exceed</text>
+    <text x="776" y="524" font-size="12" fill="#334155">• Source: BAFU / NABEL</text>
+    <text x="776" y="544" font-size="11" fill="#64748b">Attribution required: BAFU</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="600" text-anchor="middle" font-size="11" fill="#94a3b8">Read-only · No API key · No personal data · 12 tools · BAFU Open Government Data</text>
+</svg>
