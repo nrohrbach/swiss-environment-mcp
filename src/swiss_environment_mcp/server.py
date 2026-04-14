@@ -33,6 +33,8 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
 from mcp.server.sse import SseServerTransport
+from starlette.routing import Route, Mount
+from mcp.server.sse import SseServerTransport
 
 # --- Konstanten ---------------------------------------------------------------
 
@@ -1311,8 +1313,6 @@ async def get_flood_levels_resource() -> str:
 
 
 # Ersetze das Ende der Datei durch diesen Block:
-from starlette.routing import Route, Mount
-
 async def handle_sse(request):
     async with mcp._server_factory() as server:
         transport = SseServerTransport("/messages")
@@ -1323,7 +1323,7 @@ async def handle_sse(request):
             transport
         )
 
-# Das hier ist die echte ASGI-App für uvicorn
+# Das ist das Objekt, das uvicorn sucht
 app = Starlette(
     routes=[
         Route("/sse", endpoint=handle_sse, methods=["GET"]),
