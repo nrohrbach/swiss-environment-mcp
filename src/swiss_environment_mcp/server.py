@@ -1312,7 +1312,6 @@ async def get_flood_levels_resource() -> str:
     )
 
 
-# Ersetze das Ende der Datei durch diesen Block:
 async def handle_sse(request):
     async with mcp._server_factory() as server:
         transport = SseServerTransport("/messages")
@@ -1323,7 +1322,7 @@ async def handle_sse(request):
             transport
         )
 
-# Das ist das Objekt, das uvicorn sucht
+# Dies ist das Objekt, das uvicorn laden kann
 app = Starlette(
     routes=[
         Route("/sse", endpoint=handle_sse, methods=["GET"]),
@@ -1332,4 +1331,5 @@ app = Starlette(
 )
 
 if __name__ == "__main__":
+    # Ermöglicht weiterhin lokales Testen via stdio
     mcp.run()
