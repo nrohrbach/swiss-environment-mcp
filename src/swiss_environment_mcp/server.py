@@ -1312,7 +1312,7 @@ def main() -> None:
 
     if transport == "streamable_http":
         mcp.settings.port = port
-        mcp.run(transport="streamable_http")
+        mcp.run(transport="http")
     else:
         mcp.run()
 
