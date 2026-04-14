@@ -30,6 +30,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import api_client as api
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
+from mcp.server.sse import SseServerTransport
 
 # --- Konstanten ---------------------------------------------------------------
 
@@ -1307,20 +1310,26 @@ async def get_flood_levels_resource() -> str:
     )
 
 
-# --- Entry Point --------------------------------------------------------------
+# Ersetze das Ende der Datei durch diesen Block:
+from starlette.routing import Route, Mount
 
+async def handle_sse(request):
+    async with mcp._server_factory() as server:
+        transport = SseServerTransport("/messages")
+        await server.run(
+            request.scope,
+            request.receive,
+            request.send,
+            transport
+        )
 
-def main() -> None:
-    port = int(os.environ.get("PORT", 8000))
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-
-    if transport == "streamable_http":
-        mcp.settings.host = "0.0.0.0"
-        mcp.settings.port = port
-        mcp.run(transport="streamable-http")
-    else:
-        mcp.run()
-
+# Das hier ist die echte ASGI-App für uvicorn
+app = Starlette(
+    routes=[
+        Route("/sse", endpoint=handle_sse, methods=["GET"]),
+        Mount("/messages", endpoint=handle_sse, methods=["POST"]),
+    ]
+)
 
 if __name__ == "__main__":
-    main()
+    mcp.run()
