@@ -29,6 +29,7 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import api_client as api
+from mcp.server.transport_security import TransportSecuritySettings
 
 # --- Konstanten ---------------------------------------------------------------
 
@@ -113,6 +114,9 @@ mcp = FastMCP(
     Alle Daten stammen von Schweizer Bundesbehörden und sind öffentlich zugänglich.
     Zeitzone: Schweiz (CET/CEST). Masseinheiten: µg/m³ (Luft), m (Pegel), m³/s (Abfluss).
     """,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
 )
 
 
@@ -1311,7 +1315,9 @@ def main() -> None:
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
     if transport == "streamable_http":
-        mcp.run(transport="streamable_http", port=port)
+        mcp.settings.host = "0.0.0.0"
+        mcp.settings.port = port
+        mcp.run(transport="streamable-http")
     else:
         mcp.run()
 
