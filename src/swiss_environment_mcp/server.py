@@ -31,6 +31,8 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from . import api_client as api
 from mcp.server.transport_security import TransportSecuritySettings
@@ -129,6 +131,11 @@ mcp = FastMCP(
         enable_dns_rebinding_protection=False,
     ),
 )
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> JSONResponse:
+    return JSONResponse({"status": "ok", "service": "swiss-environment-mcp"})
 
 
 # --- Pydantic-Eingabemodelle --------------------------------------------------
