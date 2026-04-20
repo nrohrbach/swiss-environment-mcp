@@ -35,12 +35,6 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from . import api_client as api
-from mcp.server.transport_security import TransportSecuritySettings
-from mcp.server.fastmcp import FastMCP
-from starlette.applications import Starlette
-from mcp.server.sse import SseServerTransport
-from starlette.routing import Route, Mount
-from mcp.server.sse import SseServerTransport
 
 # --- Konstanten ---------------------------------------------------------------
 
@@ -1989,24 +1983,20 @@ async def get_flood_levels_resource() -> str:
     )
 
 
-async def handle_sse(request):
-    async with mcp._server_factory() as server:
-        transport = SseServerTransport("/messages")
-        await server.run(
-            request.scope,
-            request.receive,
-            request.send,
-            transport
-        )
+# --- Entry Point --------------------------------------------------------------
 
-# Dies ist das Objekt, das uvicorn laden kann
-app = Starlette(
-    routes=[
-        Route("/sse", endpoint=handle_sse, methods=["GET"]),
-        Mount("/messages", endpoint=handle_sse, methods=["POST"]),
-    ]
-)
+
+def main() -> None:
+    port = int(os.environ.get("PORT", 8000))
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+
+    if transport == "streamable_http":
+        mcp.settings.host = "0.0.0.0"
+        mcp.settings.port = port
+        mcp.run(transport="streamable-http")
+    else:
+        mcp.run()
+
 
 if __name__ == "__main__":
-    # Ermöglicht weiterhin lokales Testen via stdio
-    mcp.run()
+    main()
