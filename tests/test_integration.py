@@ -20,9 +20,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from swiss_environment_mcp.server import (
     AirLimitsCheckInput,
-    BafuDatasetsInput,
     BafuDatasetDetailInput,
+    BafuDatasetsInput,
     FloodWarningsInput,
+    GraphQLWaterMeasurementsInput,
+    GraphQLWaterQualityInput,
+    GraphQLWaterStationsInput,
+    GraphQLWaterTracerInput,
     HazardOverviewInput,
     HazardRegionsInput,
     HydroCurrentInput,
@@ -36,6 +40,10 @@ from swiss_environment_mcp.server import (
     env_bafu_dataset_detail,
     env_bafu_datasets,
     env_flood_warnings,
+    env_graphql_water_measurements,
+    env_graphql_water_quality,
+    env_graphql_water_stations,
+    env_graphql_water_tracer,
     env_hazard_overview,
     env_hazard_regions,
     env_hydro_current,
@@ -254,6 +262,93 @@ async def test_bafu_dataset_detail() -> None:
     test("Ungültige ID: Fehlermeldung mit Hilfehinweis", "env_bafu_datasets" in result_invalid)
 
 
+# --- GraphQL Wasser-Tests -----------------------------------------------------
+
+
+async def test_graphql_water_stations() -> None:
+    print("\n[GraphQL Wasser] Beobachtungs-Stationen")
+    if SKIP_LIVE:
+        print("  ⏭️  Live-Test übersprungen (SKIP_LIVE_TESTS=1)")
+        return
+    result = await env_graphql_water_stations(GraphQLWaterStationsInput(limit=5))
+    test("Tabellen-Header vorhanden", "Station Nr." in result)
+    test("Enthält Stationsnamen", "##" in result)
+    test("API-Link vorhanden", "data.bafu.admin.ch" in result)
+
+    result_json = await env_graphql_water_stations(
+        GraphQLWaterStationsInput(limit=3, response_format=ResponseFormat.JSON)
+    )
+    data = json.loads(result_json)
+    test("JSON: stationen vorhanden", "stationen" in data)
+    test("JSON: bis zu 3 Stationen", len(data["stationen"]) <= 3)
+
+
+async def test_graphql_water_measurements() -> None:
+    print("\n[GraphQL Wasser] Messwerte (Stundenmittel)")
+    if SKIP_LIVE:
+        print("  ⏭️  Live-Test übersprungen")
+        return
+    result = await env_graphql_water_measurements(
+        GraphQLWaterMeasurementsInput(
+            station_no="2016",
+            resolution="1hour",
+            date_from="2023-12-01T00:00:00Z",
+            date_to="2023-12-02T00:00:00Z",
+            limit=5,
+        )
+    )
+    test("Messwerte oder Hinweis zurückgegeben", len(result) > 0)
+    test("API-Link vorhanden", "data.bafu.admin.ch" in result or "Keine Messwerte" in result)
+
+    result_json = await env_graphql_water_measurements(
+        GraphQLWaterMeasurementsInput(
+            station_no="2016",
+            resolution="1hour",
+            date_from="2023-12-01T00:00:00Z",
+            date_to="2023-12-02T00:00:00Z",
+            limit=3,
+            response_format=ResponseFormat.JSON,
+        )
+    )
+    data = json.loads(result_json)
+    test("JSON: station_no vorhanden", data.get("station_no") == "2016")
+    test("JSON: messungen vorhanden", "messungen" in data)
+
+
+async def test_graphql_water_quality() -> None:
+    print("\n[GraphQL Wasser] NAWA-Trend Stationen")
+    if SKIP_LIVE:
+        print("  ⏭️  Live-Test übersprungen")
+        return
+    result = await env_graphql_water_quality(
+        GraphQLWaterQualityInput(mode="stations", limit=5)
+    )
+    test("Tabellen-Header vorhanden", "ID" in result or "Station" in result or "##" in result)
+    test("API-Link vorhanden", "data.bafu.admin.ch" in result)
+
+    result_be = await env_graphql_water_quality(
+        GraphQLWaterQualityInput(mode="stations", canton="BE", limit=5)
+    )
+    test("Kanton-Filter: Antwort vorhanden", len(result_be) > 0)
+
+
+async def test_graphql_water_tracer() -> None:
+    print("\n[GraphQL Wasser] Tracerversuche")
+    if SKIP_LIVE:
+        print("  ⏭️  Live-Test übersprungen")
+        return
+    result = await env_graphql_water_tracer(GraphQLWaterTracerInput(limit=5))
+    test("Antwort zurückgegeben", len(result) > 0)
+    test("API-Link vorhanden", "data.bafu.admin.ch" in result or "Keine Tracer" in result)
+
+    result_json = await env_graphql_water_tracer(
+        GraphQLWaterTracerInput(limit=5, response_format=ResponseFormat.JSON)
+    )
+    data = json.loads(result_json)
+    test("JSON: tracer_daten vorhanden", "tracer_daten" in data)
+    test("JSON: filter vorhanden", "filter" in data)
+
+
 # --- Main ---------------------------------------------------------------------
 
 
@@ -274,6 +369,10 @@ async def main() -> None:
     await test_wildfire_danger()
     await test_bafu_datasets()
     await test_bafu_dataset_detail()
+    await test_graphql_water_stations()
+    await test_graphql_water_measurements()
+    await test_graphql_water_quality()
+    await test_graphql_water_tracer()
 
     print("\n" + "=" * 60)
     total = _pass + _fail
