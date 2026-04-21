@@ -20,7 +20,7 @@ HYDRO_BASE = "https://www.hydrodaten.admin.ch"
 HYDRO_JSON_BASE = f"{HYDRO_BASE}/lhg/az/json"
 HYDRO_XML_STATIONS = f"{HYDRO_BASE}/lhg/az/xml/hydroweb.xml"
 
-OPENDATA_SWISS_API = "https://opendata.swiss/api/3/action"
+OPENDATA_SWISS_API = "https://ckan.opendata.swiss/api/3/action"
 
 NATURGEFAHREN_BASE = "https://www.naturgefahren.ch"
 NATURGEFAHREN_API = f"{NATURGEFAHREN_BASE}/api"
@@ -129,7 +129,7 @@ async def search_bafu_datasets(
     async with _make_client() as client:
         params: dict[str, Any] = {
             "q": query,
-            "fq": "organization:bafu",
+            "fq": "organization:bundesamt-fur-umwelt-bafu",
             "rows": rows,
             "start": start,
             "sort": "score desc, metadata_modified desc",
